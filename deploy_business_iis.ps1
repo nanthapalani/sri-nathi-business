@@ -10,7 +10,8 @@ and enables ARR reverse proxy for backend routing.
 
 param(
     [string]$Domain = "console.srinathi.in",
-    [int]$Port = 80
+    [int]$Port = 80,
+    [string]$Path = ""
 )
 
 # Requires Administrator Elevation
@@ -25,7 +26,14 @@ Write-Host "============================================================" -Foreg
 Write-Host "  SRI NATHI - AUTOMATED IIS BUSINESS CONSOLE DEPLOYMENT" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-$targetDir = "C:\inetpub\wwwroot\sri-nathi-business"
+if ($Path) {
+    $targetDir = $Path
+} elseif (Test-Path "C:\sri-nathi-business") {
+    $targetDir = "C:\sri-nathi-business"
+} else {
+    $targetDir = "C:\inetpub\wwwroot\sri-nathi-business"
+}
+
 $repoUrl = "https://github.com/nanthapalani/sri-nathi-business.git"
 $siteName = "SriNathi-BusinessConsole"
 
@@ -39,6 +47,7 @@ Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole -All -Error
 Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServer -All -ErrorAction SilentlyContinue | Out-Null
 Enable-WindowsOptionalFeature -Online -FeatureName IIS-ApplicationDevelopment -All -ErrorAction SilentlyContinue | Out-Null
 Enable-WindowsOptionalFeature -Online -FeatureName IIS-CommonHttpFeatures -All -ErrorAction SilentlyContinue | Out-Null
+Enable-WindowsOptionalFeature -Online -FeatureName IIS-DefaultDocument -All -ErrorAction SilentlyContinue | Out-Null
 Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebSockets -All -ErrorAction SilentlyContinue | Out-Null
 Import-Module WebAdministration -ErrorAction SilentlyContinue
 
@@ -55,11 +64,12 @@ if (-not (Test-Path $targetDir)) {
 }
 
 # 3. Configure Directory Security Permissions
-Write-Host "`n[3/5] Setting IIS_IUSRS Directory Permissions..." -ForegroundColor Yellow
+Write-Host "`n[3/5] Setting IIS_IUSRS and IUSR Directory Permissions..." -ForegroundColor Yellow
 $acl = Get-Acl $targetDir
-$permission = "BUILTIN\IIS_IUSRS","FullControl","ContainerInherit,ObjectInherit","None","Allow"
-$accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission
-$acl.SetAccessRule($accessRule)
+$perm1 = New-Object System.Security.AccessControl.FileSystemAccessRule("BUILTIN\IIS_IUSRS","FullControl","ContainerInherit,ObjectInherit","None","Allow")
+$perm2 = New-Object System.Security.AccessControl.FileSystemAccessRule("NT AUTHORITY\IUSR","ReadAndExecute","ContainerInherit,ObjectInherit","None","Allow")
+$acl.SetAccessRule($perm1)
+$acl.SetAccessRule($perm2)
 Set-Acl $targetDir $acl
 
 # 4. Provision IIS Site with HTTP and HTTPS (SNI)
