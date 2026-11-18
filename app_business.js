@@ -295,7 +295,7 @@ export const render = () => {
                         <span>Lock</span>
                     </button>
 
-                    <button class="topbar-btn" title="Sign Out" onclick="window.sessionGuard ? window.sessionGuard.forceLogout() : window.location.replace('/universal_login.html')" style="background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #ef4444;">
+                    <button class="topbar-btn" title="Sign Out" onclick="window.handleConsoleSignOut()" style="background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #ef4444;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     </button>
                 </div>
@@ -462,24 +462,43 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+window.handleConsoleSignOut = () => {
+    const keys = [
+        'sri_nathi_session_user',
+        'sri_nathi_jwt_token',
+        'sri_nathi_session_token',
+        'sri_nathi_token',
+        'sri_nathi_session_locked',
+        'sri_nathi_last_activity'
+    ];
+    keys.forEach(k => {
+        try { localStorage.removeItem(k); } catch(e) {}
+        try { sessionStorage.removeItem(k); } catch(e) {}
+        try { if (window.SecureStorage) window.SecureStorage.removeItem(k); } catch(e) {}
+    });
+    try { sessionStorage.clear(); } catch(e) {}
+    window.location.replace('/');
+};
+
 // ==========================================
 // BOOTSTRAP INITIALIZATION
 // ==========================================
 const initApp = async () => {
-    initAuth();
-    initSync();
-    
-    try {
-        const token = localStorage.getItem('sri_nathi_token') || localStorage.getItem('sri_nathi_jwt_token');
-        const res = await fetch('/api/system/status', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-            window.systemStatus = await res.json();
-        }
-    } catch (e) {}
+    initAuth(async () => {
+        initSync();
+        
+        try {
+            const token = localStorage.getItem('sri_nathi_token') || localStorage.getItem('sri_nathi_jwt_token');
+            const res = await fetch('/api/system/status', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                window.systemStatus = await res.json();
+            }
+        } catch (e) {}
 
-    render();
+        render();
+    });
 };
 
 if (document.readyState === 'loading') {

@@ -238,7 +238,8 @@ window.verifyOTP = async () => {
             
             // Trigger Boot Sequence
             document.getElementById('otp-container').style.display = 'none';
-            triggerBootSequence();
+            document.getElementById('login-container').style.display = 'none';
+            triggerBootSequence(window.renderAppCallback);
         } else {
             errorEl.innerText = data.detail || "Incorrect OTP";
             document.getElementById('otp-btn').innerText = "Verify Identity";
@@ -262,6 +263,7 @@ export const triggerBootSequence = (renderCallback) => {
 };
 
 export const initAuth = async (renderCallback) => {
+    window.renderAppCallback = renderCallback;
     const token = localStorage.getItem('sri_nathi_jwt_token');
     if (token) {
         try {

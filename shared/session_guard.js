@@ -347,12 +347,8 @@ class SessionGuard {
             document.cookie = "session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
         } catch(e) {}
 
-        try {
-            sessionStorage.setItem('sri_nathi_valid_login_path', '/universal_login.html');
-        } catch(e) {}
-
-        // Explicitly replace with universal_login.html so browser back cannot revive session
-        window.location.replace('/universal_login.html?switch_user=1&cb=' + Date.now());
+        // Standalone business console logout returns to console root
+        window.location.replace('/?logout=1&cb=' + Date.now());
     }
 
     injectLockScreenStyles() {
