@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="/shared/secure_storage.js"></script>
+    <script type="module" src="/shared/session_guard.js?v=45"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Nathi - Business Portal</title>
+    
+    <meta name="description" content="Business Settings and Global Configurations for Sri Nathi.">
+    <meta name="robots" content="noindex, nofollow">
+    
+    <link rel="stylesheet" href="./styles_business.css?v=20">
+    
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error("Global Error Caught:", e);
+            const text = document.getElementById('boot-progress-text');
+            if (text) {
+                text.style.color = '#ef4444';
+                text.style.fontSize = '12px';
+                text.style.whiteSpace = 'pre-wrap';
+                text.innerText = 'Boot Error: ' + e.message;
+            }
+        });
+
+        // FORCE UNREGISTER OLD SERVICE WORKERS to prevent cache/reload loops
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-main: #000000; }
+        body { margin: 0; background-color: #000000; font-family: 'Inter', sans-serif; }
+        #login-container { display: none; }
+    </style>
+    <link rel="manifest" href="/manifest.json">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <div id="login-container" class="auth-screen">
+            <div class="auth-panel">
+                <div class="auth-box">
+                    <div class="auth-logo-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                        <span>Sri Nathi</span>
+                    </div>
+                    <div class="auth-header">
+                        <h2>Log In to Your Account</h2>
+                        <p>Enter your details to continue.</p>
+                    </div>
+                    <div class="auth-form">
+                        <div class="input-group">
+                            <label>Admin ID</label>
+                            <div class="auth-input-wrapper">
+                                <input type="text" id="login-emp-id" placeholder="Enter Admin ID" autocomplete="username">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Password</label>
+                            <div class="auth-input-wrapper">
+                                <input type="password" id="login-password" placeholder="Enter Password" autocomplete="current-password" onkeypress="if(event.key === 'Enter') window.attemptLogin()">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </div>
+                        </div>
+                        <button class="primary-btn" id="login-btn" onclick="window.attemptLogin()">LOGIN</button>
+                        <div style="text-align: center; margin-top: -10px;">
+                            <a href="javascript:void(0)" onclick="window.showForgotPassword()" style="color: #4b5563; font-size: 13px; font-weight: 500; text-decoration: none;">Forgot Password?</a>
+                        </div>
+                        <div id="login-error" class="error-msg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forgot Password Request Screen -->
+        <div id="forgot-password-container" class="auth-screen" style="display:none;">
+            <div class="auth-panel">
+                <div class="auth-box">
+                    <div class="auth-logo-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                        <span>Sri Nathi</span>
+                    </div>
+                    <div class="auth-header">
+                        <h2>Reset Password</h2>
+                        <p>Enter your Admin ID to receive an OTP.</p>
+                    </div>
+                    <div class="auth-form">
+                        <div class="input-group">
+                            <label>Admin ID</label>
+                            <div class="auth-input-wrapper">
+                                <input type="text" id="forgot-emp-id" placeholder="Enter Admin ID" autocomplete="username">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </div>
+                        </div>
+                        <button class="primary-btn" id="forgot-btn" onclick="window.requestPasswordResetOTP()">SEND CODE</button>
+                        <div id="forgot-error" class="error-msg"></div>
+                        <div style="text-align: center; margin-top: -10px;">
+                            <a href="javascript:void(0)" onclick="window.cancelForgotPassword()" style="color: #4b5563; font-size: 13px; font-weight: 500; text-decoration: none;">Back to Login</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reset Password Screen -->
+        <div id="reset-password-container" class="auth-screen" style="display:none;">
+            <div class="auth-panel">
+                <div class="auth-box">
+                    <div class="auth-logo-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                        <span>Sri Nathi</span>
+                    </div>
+                    <div class="auth-header">
+                        <h2>Create New Password</h2>
+                        <p>Enter the 6-digit code and your new password.</p>
+                    </div>
+                    <div class="auth-form">
+                        <div class="input-group">
+                            <div class="auth-input-wrapper">
+                                <input type="text" id="reset-otp" placeholder="000000" maxlength="6" autocomplete="one-time-code" style="text-align: center; letter-spacing: 8px; font-size: 24px; padding-left: 1rem; padding-right: 44px;" oninput="if(this.value.length === 6) window.submitNewPassword()">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>New Password</label>
+                            <div class="auth-input-wrapper">
+                                <input type="password" id="reset-new-password" placeholder="Min 8 characters">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </div>
+                        </div>
+                        <button class="primary-btn" id="reset-btn" onclick="window.submitNewPassword()">RESET PASSWORD</button>
+                        <div id="reset-error" class="error-msg"></div>
+                        <div style="text-align: center; margin-top: -10px;">
+                            <a href="javascript:void(0)" onclick="window.requestPasswordResetOTP(event)" style="color: #4b5563; font-size: 13px; font-weight: 500; text-decoration: none; margin-right: 15px;">Resend OTP</a>
+                            <a href="javascript:void(0)" onclick="window.cancelForgotPassword()" style="color: #4b5563; font-size: 13px; font-weight: 500; text-decoration: none;">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2FA OTP Screen -->
+        <div id="otp-container" class="auth-screen" style="display:none;">
+            <div class="auth-panel">
+                <div class="auth-box">
+                    <div class="auth-logo-placeholder">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                        <span>Sri Nathi</span>
+                    </div>
+                    <div class="auth-header">
+                        <h2>2-Step Verification</h2>
+                        <p>Enter the 6-digit code sent to your email.</p>
+                    </div>
+                    <div class="auth-form">
+                        <div class="input-group">
+                            <div class="auth-input-wrapper">
+                                <input type="text" id="login-otp" placeholder="000000" maxlength="6" autocomplete="one-time-code" style="text-align: center; letter-spacing: 8px; font-size: 24px; padding-left: 1rem; padding-right: 44px;" onkeypress="if(event.key === 'Enter') window.verifyOTP()" oninput="if(this.value.length === 6) window.verifyOTP()">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </div>
+                        </div>
+                        <button class="primary-btn" id="otp-btn" onclick="window.verifyOTP()">VERIFY IDENTITY</button>
+                        <div id="otp-error" class="error-msg"></div>
+                        <div style="text-align: center; margin-top: -10px; margin-bottom: 15px;">
+                            <a href="javascript:void(0)" onclick="window.resendLoginOTP(event)" style="color: #4b5563; font-size: 13px; font-weight: 500; text-decoration: none;">Resend OTP</a>
+                        </div>
+                        <button class="primary-btn" style="background: transparent; border: 1px solid #d1d5db; color: #4b5563; margin-top: -10px; box-shadow: none;" onclick="window.cancelLogin()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Windows-Style Boot Screen -->
+        <div id="boot-loader" style="display:none;">
+            <div class="boot-content">
+                <svg class="ios-spinner boot-spinner" viewBox="0 0 50 50">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+                </svg>
+                <div id="boot-progress-text">Please wait while we set the things ready...</div>
+            </div>
+        </div>
+        
+        <!-- Global Loading Overlay -->
+        <div id="global-loader" style="display:none;">
+            <div class="loader-box">
+                <svg class="ios-spinner" viewBox="0 0 50 50">
+                    <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+                </svg>
+                <span id="global-loader-text">Saving...</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/shared/crypto_utils.js"></script>
+    <script type="module" src="app_business.js?v=22"></script>
+
+    <script>
+        console.log("Business portal initialized (ServiceWorker bypassed).");
+    </script>
+</body>
+</html>
