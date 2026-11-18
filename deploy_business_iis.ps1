@@ -62,20 +62,58 @@ $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule $per
 $acl.SetAccessRule($accessRule)
 Set-Acl $targetDir $acl
 
-# 4. Provision IIS Site
-Write-Host "`n[4/5] Provisioning IIS Site '$siteName' for '$Domain'..." -ForegroundColor Yellow
+# 4. Provision IIS Site with HTTP and HTTPS (SNI)
+Write-Host "`n[4/6] Provisioning IIS Site '$siteName' for '$Domain'..." -ForegroundColor Yellow
 if (Get-Website -Name $siteName -ErrorAction SilentlyContinue) {
     Remove-Website -Name $siteName
 }
 
+# Create base website on Port 80
 New-Website -Name $siteName `
             -PhysicalPath $targetDir `
             -Port $Port `
             -HostHeader $Domain `
             -Force | Out-Null
 
-# 5. Enable Application Request Routing (ARR) Proxy for API Calls
-Write-Host "`n[5/5] Enabling ARR Reverse Proxy in IIS..." -ForegroundColor Yellow
+# 5. Configure HTTPS Port 443 with SNI
+Write-Host "`n[5/6] Configuring HTTPS (Port 443) with SSL and SNI..." -ForegroundColor Yellow
+$certs = Get-ChildItem -Path Cert:\LocalMachine\My, Cert:\LocalMachine\WebHosting -ErrorAction SilentlyContinue | Where-Object { 
+    $_.Subject -match "srinathi.in" -or $_.DnsNameList -match "srinathi.in" 
+}
+$cert = $null
+if ($certs) {
+    $cert = $certs | Where-Object { $_.NotAfter -gt (Get-Date) } | Sort-Object NotAfter -Descending | Select-Object -First 1
+}
+if ($cert) {
+    Write-Host "Attaching existing valid SSL certificate ($($cert.Subject))..." -ForegroundColor Green
+} else {
+    Write-Host "Creating local Origin SSL certificate for $Domain..." -ForegroundColor Gray
+    $cert = New-SelfSignedCertificate `
+        -DnsName $Domain, "*.srinathi.in", "srinathi.in" `
+        -CertStoreLocation "Cert:\LocalMachine\My" `
+        -FriendlyName "Sri Nathi Origin SSL ($Domain)" `
+        -NotAfter (Get-Date).AddYears(5)
+}
+
+New-WebBinding -Name $siteName `
+               -IPAddress "*" `
+               -Port 443 `
+               -Protocol "https" `
+               -HostHeader $Domain `
+               -SslFlags 1
+
+$certHash = $cert.GetCertHashString()
+$guid = [guid]::NewGuid().ToString("B")
+netsh http delete sslcert hostnameport="${Domain}:443" 2>$null | Out-Null
+netsh http add sslcert hostnameport="${Domain}:443" certhash=$certHash appid=$guid certstorename="My" | Out-Null
+
+try {
+    $binding = Get-WebBinding -Name $siteName -Protocol "https" -Port 443 -HostHeader $Domain
+    $binding.AddSslCertificate($certHash, "My")
+} catch {}
+
+# 6. Enable Application Request Routing (ARR) Proxy for API Calls
+Write-Host "`n[6/6] Enabling ARR Reverse Proxy in IIS..." -ForegroundColor Yellow
 try {
     Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location '' -filter 'system.webServer/proxy' -name 'enabled' -value 'true' -ErrorAction SilentlyContinue
     Write-Host "ARR Reverse Proxy verified." -ForegroundColor Green
@@ -84,12 +122,12 @@ try {
 }
 
 Write-Host "`n============================================================" -ForegroundColor Green
-Write-Host "  SUCCESS! BUSINESS CONSOLE DEPLOYED ON IIS!" -ForegroundColor Green
-Write-Host "  Domain: https://$Domain (or http://$Domain)" -ForegroundColor Green
+Write-Host "  SUCCESS! BUSINESS CONSOLE DEPLOYED ON IIS WITH HTTPS!" -ForegroundColor Green
+Write-Host "  Secure URL: https://$Domain" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host "`nNext Steps:" -ForegroundColor Cyan
-Write-Host "1. Ensure DNS A/CNAME record points '$Domain' to this server." -ForegroundColor White
-Write-Host "2. In Cloudflare or IIS, bind SSL certificate to '$Domain'." -ForegroundColor White
+Write-Host "1. In Cloudflare DNS, add a CNAME record: name 'console' -> 'web.srinathi.in' (Proxy: ON)." -ForegroundColor White
+Write-Host "2. Cloudflare will automatically serve the valid wildcard SSL certificate to all browsers." -ForegroundColor White
 Write-Host "3. Ensure SriNathiBackend service is running on port 8000." -ForegroundColor White
 Write-Host "Press any key to exit..."
 $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') | Out-Null
