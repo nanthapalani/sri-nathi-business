@@ -78,12 +78,15 @@ if (Get-Website -Name $siteName -ErrorAction SilentlyContinue) {
     Remove-Website -Name $siteName
 }
 
-# Create base website on Port 80
+# Create base website on Port 80 with domain and 10.30.0.11 bindings
 New-Website -Name $siteName `
             -PhysicalPath $targetDir `
             -Port $Port `
             -HostHeader $Domain `
             -Force | Out-Null
+
+# Add binding for local IP 10.30.0.11 on Port 80
+New-WebBinding -Name $siteName -IPAddress "*" -Port 80 -HostHeader "10.30.0.11" -Force -ErrorAction SilentlyContinue | Out-Null
 
 # 5. Configure HTTPS Port 443 with SNI
 Write-Host "`n[5/6] Configuring HTTPS (Port 443) with SSL and SNI..." -ForegroundColor Yellow
