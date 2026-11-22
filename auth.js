@@ -173,7 +173,19 @@ window.attemptLogin = async () => {
         let data;
         try { data = await res.json(); } catch(err) { data = {}; }
 
-        if (res.ok && data.status === '2fa_required') {
+        if (res.ok && data.status === 'success') {
+            const userObj = data.user || data.employee;
+            localStorage.setItem('sri_nathi_session_token', data.sessionToken);
+            localStorage.setItem('sri_nathi_jwt_token', data.token);
+            localStorage.setItem('sri_nathi_session_user', JSON.stringify(userObj));
+            
+            // Trigger Boot Sequence directly for management bypass / single-factor users
+            document.getElementById('login-container').style.display = 'none';
+            if (document.getElementById('otp-container')) {
+                document.getElementById('otp-container').style.display = 'none';
+            }
+            triggerBootSequence(window.renderAppCallback);
+        } else if (res.ok && data.status === '2fa_required') {
             tempLoginState = data;
             document.getElementById('login-container').style.display = 'none';
             document.getElementById('otp-container').style.display = 'flex';
